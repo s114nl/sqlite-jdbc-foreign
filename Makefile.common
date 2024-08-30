@@ -220,7 +220,7 @@ Mac-x86_64_SQLITE_FLAGS  :=
 Mac-aarch64_CC        := $(CROSS_PREFIX)clang
 Mac-aarch64_STRIP     := $(CROSS_PREFIX)strip -x
 MAC_SDK := /usr/osxcross/SDK/MacOSX11.3.sdk
-Mac-aarch64_CCFLAGS    := -I$(MAC_SDK)/System/Library/Frameworks/JavaVM.framework/Headers -Ilib/inc_mac -Os -fPIC -mmacosx-version-min=10.9 -fvisibility=hidden -Wno-implicit-function-declaration
+Mac-aarch64_CCFLAGS    := -I$(MAC_SDK)/System/Library/Frameworks/JavaVM.framework/Headers -Ilib/inc_mac -Os -fPIC -mmacosx-version-min=10.9 -Wno-implicit-function-declaration
 Mac-aarch64_LINKFLAGS  := -dynamiclib
 Mac-aarch64_LIBNAME    := libsqlitejdbc.dylib
 Mac-aarch64_SQLITE_FLAGS := 

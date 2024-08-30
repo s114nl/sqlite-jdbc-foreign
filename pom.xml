@@ -16,6 +16,8 @@
         <archunit.version>1.3.0</archunit.version>
         <graalvm.version>24.0.2</graalvm.version>
         <java9.sourceDirectory>${project.basedir}/src/main/java9</java9.sourceDirectory>
+        <java22.sourceDirectory>${project.basedir}/src/main/java22</java22.sourceDirectory>
+        <java22.enableJEP442>false</java22.enableJEP442>
     </properties>
 
     <licenses>
@@ -116,6 +118,20 @@
                             <release>9</release>
                             <compileSourceRoots>
                                 <compileSourceRoot>${java9.sourceDirectory}</compileSourceRoot>
+                            </compileSourceRoots>
+                            <multiReleaseOutput>true</multiReleaseOutput>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>java22-compile</id>
+                        <phase>compile</phase>
+                        <goals>
+                            <goal>compile</goal>
+                        </goals>
+                        <configuration>
+                            <release>22</release>
+                            <compileSourceRoots>
+                                <compileSourceRoot>${java22.sourceDirectory}</compileSourceRoot>
                             </compileSourceRoots>
                             <multiReleaseOutput>true</multiReleaseOutput>
                         </configuration>
@@ -227,7 +243,7 @@
                                     <version>3.2.5</version>
                                 </requireMavenVersion>
                                 <requireJavaVersion>
-                                    <version>11</version>
+                                    <version>${java.version}</version>
                                 </requireJavaVersion>
                             </rules>
                         </configuration>
@@ -280,6 +296,9 @@
                     <value>true</value>
                 </property>
             </activation>
+            <properties>
+                <classifier>release</classifier>
+            </properties>
             <build>
                 <plugins>
                     <plugin>
