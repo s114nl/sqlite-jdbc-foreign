@@ -27,6 +27,7 @@ public class ForeignSqlite3 {
     static final MethodHandle busyTimeout = _busyTime();
     static final MethodHandle clearBindings = _clearBindings();
     static final MethodHandle closeV2 = _closeV2();
+    static final MethodHandle errmsg = _errmsg();
     static final MethodHandle exec = _exec();
     static final MethodHandle finalize = _finalize();
     static final MethodHandle interrupt = _interrupt();
@@ -34,7 +35,6 @@ public class ForeignSqlite3 {
     static final MethodHandle prepareV2 = _prepareV2();
     static final MethodHandle reset = _reset();
     static final MethodHandle step = _step();
-    static final MethodHandle errmsg = _errmsg();
 
     /**
      * <a href="https://www.sqlite.org/c3ref/errcode.html">errcode</a>
