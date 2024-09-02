@@ -3,12 +3,13 @@ package org.sqlite.core;
 import org.sqlite.*;
 import org.sqlite.core.assertion.Asserts;
 
-import java.lang.foreign.*;
+import java.lang.foreign.Arena;
+import java.lang.foreign.MemorySegment;
+import java.lang.foreign.ValueLayout;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.sql.SQLException;
 
-import static java.lang.String.format;
 import static java.lang.foreign.Linker.nativeLinker;
 
 public class ForeignDB extends DB {
@@ -43,7 +44,6 @@ public class ForeignDB extends DB {
 
     @Override
     public void busy_handler(BusyHandler busyHandler) throws SQLException {
-
         try {
             var callback = MethodHandles.lookup()
                     .bind(this, "nativeBusyHandlerCallback", MethodType.methodType(
@@ -52,7 +52,8 @@ public class ForeignDB extends DB {
                             int.class            // invocationCount
                     ));
             var callbackDescriptor = ForeignSqlite3.NativeBusyHandlerCallback.descriptor;
-            var callbackHandle = nativeLinker().upcallStub(callback, callbackDescriptor, Arena.ofAuto());
+            var callbackHandle = nativeLinker()
+                    .upcallStub(callback, callbackDescriptor, Arena.global());
 
             var retVal = (int) ForeignSqlite3.busyHandler.invokeExact(
                     sqlite3Handle(),
@@ -66,15 +67,23 @@ public class ForeignDB extends DB {
         }
     }
 
+    @SuppressWarnings("unused")
     int nativeBusyHandlerCallback(MemorySegment context, int invocationCount) {
         Asserts.notNull(busyHandler,
                 "The busy-handle callback receiver cannot be null");
-            return 0;
+        return 0;
     }
 
     @Override
     String errmsg() throws SQLException {
-        return "";
+        try {
+            var result = (MemorySegment) ForeignSqlite3.errmsg.invokeExact(sqlite3Handle());
+            return result
+                    .reinterpret(Integer.MAX_VALUE)
+                    .getString(0);
+        } catch (Throwable t) {
+            throw new SQLException(t);
+        }
     }
 
     @Override
@@ -119,6 +128,10 @@ public class ForeignDB extends DB {
      */
     @Override
     protected void _open(String filename, int openFlags) throws SQLException {
+        // opening a database is not re-entrant.
+        Asserts.state(sqlite3Handle == 0L,
+                "The database [{}] has already been opened.", filename);
+
         // Use try-with-resources to manage the lifetime of off-heap memory
         try (var arena = Arena.ofConfined()) {
             var nativeFilename = arena.allocateFrom(filename);
@@ -129,7 +142,8 @@ public class ForeignDB extends DB {
                     openFlags,
                     MemorySegment.NULL
             );
-            assert retVal == 0;
+            Asserts.state(retVal == 0,
+                    "The database [{0}] could not be opened; error-code={1}", filename, retVal);
 
             // store the pointer value to the sqlite3 db struct
             this.sqlite3Handle = nativeDbHandle.get(ValueLayout.JAVA_LONG, 0);
@@ -182,11 +196,13 @@ public class ForeignDB extends DB {
             var retVal = (int) ForeignSqlite3.prepareV2.invokeExact(
                     sqlite3Handle(),
                     nativeSql,
-                    -1,
+                    (int) nativeSql.byteSize(),
                     nativeStatementHandle,
                     MemorySegment.NULL
             );
-            assert retVal == 0;
+            Asserts.state(retVal == Codes.SQLITE_OK,
+                    "Failed to prepare the sql query; code={0}, msg={1}", retVal, errmsg());
+
             return new SafeStmtPtr(this, nativeStatementHandle.get(ValueLayout.JAVA_LONG, 0));
         } catch (Throwable e) {
             throw new SQLException(e);

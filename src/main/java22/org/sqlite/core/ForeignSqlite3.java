@@ -11,7 +11,15 @@ public class ForeignSqlite3 {
 
     static {
         linker = Linker.nativeLinker();
-        symbols = linker.defaultLookup();
+        symbols = lookupSqlite3Library();
+    }
+
+    static SymbolLookup lookupSqlite3Library() {
+        var library = new File("/Users/epdittmer/Downloads/sqlite-amalgamation-3460100", "out");
+        if (!library.exists()) {
+            throw new IllegalArgumentException(library.getAbsolutePath());
+        }
+        return SymbolLookup.libraryLookup(library.getAbsolutePath(), Arena.global());
     }
 
     static final MethodHandle bindParameterCount = _bindParameterCount();
@@ -26,6 +34,23 @@ public class ForeignSqlite3 {
     static final MethodHandle prepareV2 = _prepareV2();
     static final MethodHandle reset = _reset();
     static final MethodHandle step = _step();
+    static final MethodHandle errmsg = _errmsg();
+
+    /**
+     * <a href="https://www.sqlite.org/c3ref/errcode.html">errcode</a>
+     *
+     * <pre>
+     *     const char *sqlite3_errmsg(sqlite3*);
+     * </pre>
+     */
+    private static MethodHandle _errmsg() {
+        var addr = resolveSymbol("sqlite3_errmsg");
+        var descriptor = FunctionDescriptor.of(
+                ValueLayout.ADDRESS, // const char *
+                ValueLayout.ADDRESS  // sqlite3*
+        );
+        return linker.downcallHandle(addr, descriptor);
+    }
 
     private static MethodHandle _clearBindings() {
         return null;
@@ -46,6 +71,7 @@ public class ForeignSqlite3 {
         var addr = resolveSymbol("sqlite3_busy_handler");
         var descriptor = FunctionDescriptor.of(
                 ValueLayout.JAVA_INT, // result int
+                ValueLayout.ADDRESS,  // sqlite3*
                 ValueLayout.ADDRESS,  // int(*)(void*,int)
                 ValueLayout.ADDRESS   // void*
         );
@@ -60,7 +86,7 @@ public class ForeignSqlite3 {
         static final FunctionDescriptor descriptor = FunctionDescriptor.of(
                 ValueLayout.JAVA_INT,
                 ValueLayout.ADDRESS,
-                ValueLayout.ADDRESS
+                ValueLayout.JAVA_INT
         );
     }
 
@@ -148,6 +174,7 @@ public class ForeignSqlite3 {
                 ValueLayout.JAVA_INT,  // result int
                 ValueLayout.ADDRESS,   // sqlite3*,
                 ValueLayout.ADDRESS,   // const char *sql,
+                ValueLayout.ADDRESS,   // int (*callback)(void*,int,char**,char**)
                 ValueLayout.ADDRESS,   // void *
                 ValueLayout.ADDRESS    // char **errmsg
         );
@@ -215,7 +242,6 @@ public class ForeignSqlite3 {
         var addr = resolveSymbol("sqlite3_step");
         var descriptor = FunctionDescriptor.of(
                 ValueLayout.JAVA_INT,  // result int
-                ValueLayout.ADDRESS,   // sqlite3 *db,
                 ValueLayout.ADDRESS    // sqlite3_stmt *pStmt
         );
         return linker.downcallHandle(addr, descriptor);

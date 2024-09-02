@@ -1,5 +1,11 @@
 package org.sqlite;
 
+import org.sqlite.SQLiteConfig.TransactionMode;
+import org.sqlite.core.CoreDatabaseMetaData;
+import org.sqlite.core.DB;
+import org.sqlite.core.ForeignDB;
+import org.sqlite.jdbc4.JDBC4DatabaseMetaData;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -16,13 +22,10 @@ import java.sql.SQLException;
 import java.util.Properties;
 import java.util.UUID;
 import java.util.concurrent.Executor;
-import org.sqlite.SQLiteConfig.TransactionMode;
-import org.sqlite.core.CoreDatabaseMetaData;
-import org.sqlite.core.DB;
-import org.sqlite.core.NativeDB;
-import org.sqlite.jdbc4.JDBC4DatabaseMetaData;
 
-/** */
+/**
+ *
+ */
 public abstract class SQLiteConnection implements Connection {
     private static final String RESOURCE_NAME_PREFIX = ":resource:";
     private final DB db;
@@ -45,7 +48,7 @@ public abstract class SQLiteConnection implements Connection {
     /**
      * Constructor to create a connection to a database at the given location.
      *
-     * @param url The location of the database.
+     * @param url      The location of the database.
      * @param fileName The database.
      * @throws SQLException
      */
@@ -56,9 +59,9 @@ public abstract class SQLiteConnection implements Connection {
     /**
      * Constructor to create a pre-configured connection to a database at the given location.
      *
-     * @param url The location of the database file.
+     * @param url      The location of the database file.
      * @param fileName The database.
-     * @param prop The configurations to apply.
+     * @param prop     The configurations to apply.
      * @throws SQLException
      */
     public SQLiteConnection(String url, String fileName, Properties prop) throws SQLException {
@@ -115,7 +118,7 @@ public abstract class SQLiteConnection implements Connection {
 
     @Override
     public DatabaseMetaData getMetaData() throws SQLException {
-        return (DatabaseMetaData) getSQLiteDatabaseMetaData();
+        return getSQLiteDatabaseMetaData();
     }
 
     public String getUrl() {
@@ -173,19 +176,23 @@ public abstract class SQLiteConnection implements Connection {
      *
      * @param mode One of {@link SQLiteConfig.TransactionMode}
      * @see <a
-     *     href="https://www.sqlite.org/lang_transaction.html">https://www.sqlite.org/lang_transaction.html</a>
+     * href="https://www.sqlite.org/lang_transaction.html">https://www.sqlite.org/lang_transaction.html</a>
      */
     protected void setTransactionMode(SQLiteConfig.TransactionMode mode) {
         connectionConfig.setTransactionMode(mode);
     }
 
-    /** @see java.sql.Connection#getTransactionIsolation() */
+    /**
+     * @see java.sql.Connection#getTransactionIsolation()
+     */
     @Override
     public int getTransactionIsolation() {
         return connectionConfig.getTransactionIsolation();
     }
 
-    /** @see java.sql.Connection#setTransactionIsolation(int) */
+    /**
+     * @see java.sql.Connection#setTransactionIsolation(int)
+     */
     public void setTransactionIsolation(int level) throws SQLException {
         checkOpen();
 
@@ -202,10 +209,10 @@ public abstract class SQLiteConnection implements Connection {
             default:
                 throw new SQLException(
                         "Unsupported transaction isolation level: "
-                                + level
-                                + ". "
-                                + "Must be one of TRANSACTION_READ_UNCOMMITTED, TRANSACTION_READ_COMMITTED, "
-                                + "TRANSACTION_REPEATABLE_READ, or TRANSACTION_SERIALIZABLE in java.sql.Connection");
+                        + level
+                        + ". "
+                        + "Must be one of TRANSACTION_READ_UNCOMMITTED, TRANSACTION_READ_COMMITTED, "
+                        + "TRANSACTION_REPEATABLE_READ, or TRANSACTION_SERIALIZABLE in java.sql.Connection");
         }
         connectionConfig.setTransactionIsolation(level);
     }
@@ -214,7 +221,7 @@ public abstract class SQLiteConnection implements Connection {
      * Opens a connection to the database using an SQLite library. * @throws SQLException
      *
      * @see <a
-     *     href="https://www.sqlite.org/c3ref/c_open_autoproxy.html">https://www.sqlite.org/c3ref/c_open_autoproxy.html</a>
+     * href="https://www.sqlite.org/c3ref/c_open_autoproxy.html">https://www.sqlite.org/c3ref/c_open_autoproxy.html</a>
      */
     private static DB open(String url, String origFileName, Properties props) throws SQLException {
         // Create a copy of the given properties
@@ -227,9 +234,9 @@ public abstract class SQLiteConnection implements Connection {
 
         // check the path to the file exists
         if (!fileName.isEmpty()
-                && !":memory:".equals(fileName)
-                && !fileName.startsWith("file:")
-                && !fileName.contains("mode=memory")) {
+            && !":memory:".equals(fileName)
+            && !fileName.startsWith("file:")
+            && !fileName.contains("mode=memory")) {
             if (fileName.startsWith(RESOURCE_NAME_PREFIX)) {
                 String resourceName = fileName.substring(RESOURCE_NAME_PREFIX.length());
 
@@ -277,11 +284,12 @@ public abstract class SQLiteConnection implements Connection {
         // load the native DB
         DB db = null;
         try {
-            NativeDB.load();
-            db = new NativeDB(url, fileName, config);
+            // TODO tuck this away neatly
+//            NativeDB.load();
+//            db = new NativeDB(url, fileName, config);
+            db = new ForeignDB(url, fileName, config);
         } catch (Exception e) {
-            SQLException err = new SQLException("Error opening connection");
-            err.initCause(e);
+            SQLException err = new SQLException("Error opening connection", e);
             throw err;
         }
         db.open(fileName, config.getOpenModeFlags());
@@ -345,7 +353,9 @@ public abstract class SQLiteConnection implements Connection {
         return db;
     }
 
-    /** @see java.sql.Connection#getAutoCommit() */
+    /**
+     * @see java.sql.Connection#getAutoCommit()
+     */
     @Override
     public boolean getAutoCommit() throws SQLException {
         checkOpen();
@@ -353,7 +363,9 @@ public abstract class SQLiteConnection implements Connection {
         return connectionConfig.isAutoCommit();
     }
 
-    /** @see java.sql.Connection#setAutoCommit(boolean) */
+    /**
+     * @see java.sql.Connection#setAutoCommit(boolean)
+     */
     @Override
     public void setAutoCommit(boolean ac) throws SQLException {
         checkOpen();
@@ -374,7 +386,7 @@ public abstract class SQLiteConnection implements Connection {
     /**
      * @return The busy timeout value for the connection.
      * @see <a
-     *     href="https://www.sqlite.org/c3ref/busy_timeout.html">https://www.sqlite.org/c3ref/busy_timeout.html</a>
+     * href="https://www.sqlite.org/c3ref/busy_timeout.html">https://www.sqlite.org/c3ref/busy_timeout.html</a>
      */
     public int getBusyTimeout() {
         return db.getConfig().getBusyTimeout();
@@ -384,10 +396,10 @@ public abstract class SQLiteConnection implements Connection {
      * Sets the timeout value for the connection. A timeout value less than or equal to zero turns
      * off all busy handlers.
      *
-     * @see <a
-     *     href="https://www.sqlite.org/c3ref/busy_timeout.html">https://www.sqlite.org/c3ref/busy_timeout.html</a>
      * @param timeoutMillis The timeout value in milliseconds.
      * @throws SQLException
+     * @see <a
+     * href="https://www.sqlite.org/c3ref/busy_timeout.html">https://www.sqlite.org/c3ref/busy_timeout.html</a>
      */
     public void setBusyTimeout(int timeoutMillis) throws SQLException {
         db.getConfig().setBusyTimeout(timeoutMillis);
@@ -411,7 +423,9 @@ public abstract class SQLiteConnection implements Connection {
         return db.isClosed();
     }
 
-    /** @see java.sql.Connection#close() */
+    /**
+     * @see java.sql.Connection#close()
+     */
     @Override
     public void close() throws SQLException {
         if (isClosed()) return;
@@ -433,7 +447,7 @@ public abstract class SQLiteConnection implements Connection {
      * @return Compile-time library version numbers.
      * @throws SQLException
      * @see <a
-     *     href="https://www.sqlite.org/c3ref/c_source_id.html">https://www.sqlite.org/c3ref/c_source_id.html</a>
+     * href="https://www.sqlite.org/c3ref/c_source_id.html">https://www.sqlite.org/c3ref/c_source_id.html</a>
      */
     public String libversion() throws SQLException {
         checkOpen();
@@ -441,7 +455,9 @@ public abstract class SQLiteConnection implements Connection {
         return db.libversion();
     }
 
-    /** @see java.sql.Connection#commit() */
+    /**
+     * @see java.sql.Connection#commit()
+     */
     @Override
     public void commit() throws SQLException {
         checkOpen();
@@ -452,7 +468,9 @@ public abstract class SQLiteConnection implements Connection {
         this.setCurrentTransactionMode(this.getConnectionConfig().getTransactionMode());
     }
 
-    /** @see java.sql.Connection#rollback() */
+    /**
+     * @see java.sql.Connection#rollback()
+     */
     @Override
     public void rollback() throws SQLException {
         checkOpen();
@@ -518,7 +536,7 @@ public abstract class SQLiteConnection implements Connection {
         }
 
         StringBuilder sb = new StringBuilder();
-        sb.append(filename.substring(0, parameterDelimiter));
+        sb.append(filename, 0, parameterDelimiter);
 
         int nonPragmaCount = 0;
         String[] parameters = filename.substring(parameterDelimiter + 1).split("&");
@@ -587,7 +605,7 @@ public abstract class SQLiteConnection implements Connection {
      * existing schema, first execute ATTACH ':memory:' AS schema_name
      *
      * @param schema The schema to serialize
-     * @param buff The buffer to deserialize
+     * @param buff   The buffer to deserialize
      */
     public void deserialize(String schema, byte[] buff) throws SQLException {
         db.deserialize(schema, buff);

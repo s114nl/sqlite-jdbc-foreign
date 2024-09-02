@@ -31,4 +31,17 @@ public class Asserts {
             throw new NullPointerException(new MessageFormat(message).format(args));
         }
     }
+
+    /**
+     * Assert that an object is null.
+     *
+     * @param object  the object to check
+     * @param message the exception message to use if the assertion fails as {@link MessageFormat}
+     * @param args    the <code>message</code> interpolation arguments
+     */
+    public static void isNull(Object object, String message, Object... args) {
+        if (object != null) {
+            throw new IllegalArgumentException(new MessageFormat(message).format(args));
+        }
+    }
 }
