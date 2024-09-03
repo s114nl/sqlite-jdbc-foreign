@@ -14,7 +14,8 @@ public class ForeignSqlite3 {
         symbols = lookupSqlite3Library();
     }
 
-    static SymbolLookup lookupSqlite3Library() {
+
+    private static SymbolLookup lookupSqlite3Library() {
         var library = new File("/Users/epdittmer/Downloads/sqlite-amalgamation-3460100", "out");
         if (!library.exists()) {
             throw new IllegalArgumentException(library.getAbsolutePath());
@@ -24,7 +25,7 @@ public class ForeignSqlite3 {
 
     static final MethodHandle bindParameterCount = _bindParameterCount();
     static final MethodHandle busyHandler = _busyHandler();
-    static final MethodHandle busyTimeout = _busyTime();
+    static final MethodHandle busyTimeout = _busyTimeOut();
     static final MethodHandle clearBindings = _clearBindings();
     static final MethodHandle closeV2 = _closeV2();
     static final MethodHandle errmsg = _errmsg();
@@ -35,6 +36,87 @@ public class ForeignSqlite3 {
     static final MethodHandle prepareV2 = _prepareV2();
     static final MethodHandle reset = _reset();
     static final MethodHandle step = _step();
+    static final MethodHandle libversion = _libversion();
+    static final MethodHandle changes = _changes();
+    static final MethodHandle totalChanges = _totalChanges();
+    static final MethodHandle enableSharedCache = _enableSharedCache();
+    static final MethodHandle enableLoadExtension = _enableLoadExtension();
+
+    /**
+     * <a href="https://www.sqlite.org/c3ref/enable_load_extension.html">enable load extension</a>
+     * <pre>
+     *     int sqlite3_enable_load_extension(sqlite3 *db, int onoff);
+     * </pre>
+     */
+    private static MethodHandle _enableLoadExtension() {
+        var addr = resolveSymbol("sqlite3_enable_load_extension");
+        var descriptor = FunctionDescriptor.of(
+                ValueLayout.JAVA_INT,  // result int
+                ValueLayout.JAVA_INT    // int (1 = on, 0 = off)
+        );
+        return linker.downcallHandle(addr, descriptor);
+    }
+
+    /**
+     * <a href="https://www.sqlite.org/c3ref/enable_shared_cache.html">enable_shared_cache</a>
+     * <pre>
+     *  int sqlite3_enable_shared_cache(int);
+     * </pre>
+     */
+    private static MethodHandle _enableSharedCache() {
+        var addr = resolveSymbol("sqlite3_enable_shared_cache");
+        var descriptor = FunctionDescriptor.of(
+                ValueLayout.JAVA_INT,  // result int
+                ValueLayout.JAVA_INT    // int (1 = on, 0 = off)
+        );
+        return linker.downcallHandle(addr, descriptor);
+    }
+
+    /**
+     * <a href="https://sqlite.org/c3ref/total_changes.html">total changes</a>
+     *
+     * <pre>
+     *     int sqlite3_total_changes(sqlite3*);
+     * </pre>
+     */
+    private static MethodHandle _totalChanges() {
+        var addr = resolveSymbol("total_changes");
+        var descriptor = FunctionDescriptor.of(
+                ValueLayout.JAVA_INT,  // result int
+                ValueLayout.ADDRESS    // sqlite3*
+        );
+        return linker.downcallHandle(addr, descriptor);
+    }
+
+    /**
+     * <a href="https://sqlite.org/c3ref/changes.html">changes</a>
+     * <pre>
+     *     int sqlite3_changes(sqlite3*);
+     * </pre>
+     */
+    private static MethodHandle _changes() {
+        var addr = resolveSymbol("sqlite3_changes");
+        var descriptor = FunctionDescriptor.of(
+                ValueLayout.JAVA_INT,  // result int
+                ValueLayout.ADDRESS    // sqlite3*
+        );
+        return linker.downcallHandle(addr, descriptor);
+    }
+
+    /**
+     * <a href="https://www.sqlite.org/c3ref/libversion.html">libversion</a>
+     *
+     * <pre>
+     *     const char *sqlite3_libversion(void);
+     * </pre>
+     */
+    private static MethodHandle _libversion() {
+        var addr = resolveSymbol("sqlite3_libversion");
+        var descriptor = FunctionDescriptor.of(
+                ValueLayout.ADDRESS // const char *
+        );
+        return linker.downcallHandle(addr, descriptor);
+    }
 
     /**
      * <a href="https://www.sqlite.org/c3ref/errcode.html">errcode</a>
@@ -52,12 +134,35 @@ public class ForeignSqlite3 {
         return linker.downcallHandle(addr, descriptor);
     }
 
+    /**
+     * <a href="https://www.sqlite.org/c3ref/clear_bindings.html">clear_bindings</a>
+     * <pre>
+     *     int sqlite3_clear_bindings(sqlite3_stmt*);
+     * </pre>
+     */
     private static MethodHandle _clearBindings() {
-        return null;
+        var addr = resolveSymbol("sqlite3_clear_bindings");
+        var descriptor = FunctionDescriptor.of(
+                ValueLayout.JAVA_INT, // result int
+                ValueLayout.ADDRESS   // sqlite3_stmt *pStmt
+        );
+        return linker.downcallHandle(addr, descriptor);
     }
 
+    /**
+     * <a href="https://www.sqlite.org/c3ref/bind_parameter_count.html">bind_parameter_count</a>
+     *
+     * <pre>
+     *     int sqlite3_bind_parameter_count(sqlite3_stmt*);
+     * </pre>
+     */
     private static MethodHandle _bindParameterCount() {
-        return null;
+        var addr = resolveSymbol("sqlite3_bind_parameter_count");
+        var descriptor = FunctionDescriptor.of(
+                ValueLayout.JAVA_INT, // result int
+                ValueLayout.ADDRESS   // sqlite3_stmt *pStmt
+        );
+        return linker.downcallHandle(addr, descriptor);
     }
 
     /**
@@ -96,7 +201,7 @@ public class ForeignSqlite3 {
      *     int sqlite3_busy_timeout(sqlite3*, int ms);
      * </pre>
      */
-    private static MethodHandle _busyTime() {
+    private static MethodHandle _busyTimeOut() {
         var addr = resolveSymbol("sqlite3_busy_timeout");
         var descriptor = FunctionDescriptor.of(
                 ValueLayout.JAVA_INT, // result int
@@ -114,8 +219,7 @@ public class ForeignSqlite3 {
      */
     private static MethodHandle _interrupt() {
         var addr = resolveSymbol("sqlite3_interrupt");
-        var descriptor = FunctionDescriptor.of(
-                ValueLayout.JAVA_INT, // result int
+        var descriptor = FunctionDescriptor.ofVoid(
                 ValueLayout.ADDRESS   // sqlite3*
         );
         return linker.downcallHandle(addr, descriptor);

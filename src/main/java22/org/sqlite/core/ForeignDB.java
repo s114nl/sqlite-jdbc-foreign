@@ -6,6 +6,7 @@ import org.sqlite.core.assertion.Asserts;
 import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.ValueLayout;
+import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.sql.SQLException;
@@ -34,12 +35,23 @@ public class ForeignDB extends DB {
 
     @Override
     public void interrupt() throws SQLException {
-
+        try {
+            ForeignSqlite3.interrupt.invokeExact(sqlite3Handle());
+        } catch (Throwable t) {
+            throw new SQLException(t);
+        }
     }
 
     @Override
     public void busy_timeout(int ms) throws SQLException {
-
+        try {
+            var resultCode = (int) ForeignSqlite3.busyTimeout.invokeExact(sqlite3Handle(), ms);
+            if (resultCode != SQLITE_OK) {
+                throwex(resultCode);
+            }
+        } catch (Throwable t) {
+            throw new SQLException(t);
+        }
     }
 
     @Override
@@ -55,13 +67,14 @@ public class ForeignDB extends DB {
             var callbackHandle = nativeLinker()
                     .upcallStub(callback, callbackDescriptor, Arena.global());
 
-            var retVal = (int) ForeignSqlite3.busyHandler.invokeExact(
+            var resultCode = (int) ForeignSqlite3.busyHandler.invokeExact(
                     sqlite3Handle(),
                     callbackHandle,
                     MemorySegment.NULL
             );
-            Asserts.state(retVal == 0,
-                    "Failed to register busy-handler; exitcode={0}", retVal);
+            if (resultCode != SQLITE_OK) {
+                throwex(resultCode);
+            }
         } catch (Throwable e) {
             throw new SQLException(e);
         }
@@ -88,27 +101,56 @@ public class ForeignDB extends DB {
 
     @Override
     public String libversion() throws SQLException {
-        return "";
+        try {
+            var version = (MemorySegment) ForeignSqlite3.libversion.invokeExact();
+            return version
+                    .reinterpret(Integer.MAX_VALUE)
+                    .getString(0);
+        } catch (Throwable t) {
+            throw new SQLException(t);
+        }
     }
 
     @Override
     public long changes() throws SQLException {
-        return 0;
+        try {
+            return (int) ForeignSqlite3.changes.invokeExact(sqlite3Handle());
+        } catch (Throwable t) {
+            throw new SQLException(t);
+        }
     }
 
     @Override
     public long total_changes() throws SQLException {
-        return 0;
+        try {
+            return (int) ForeignSqlite3.totalChanges.invokeExact(sqlite3Handle());
+        } catch (Throwable t) {
+            throw new SQLException(t);
+        }
     }
 
     @Override
     public int shared_cache(boolean enable) throws SQLException {
-        return 0;
+        return onoff(ForeignSqlite3.enableSharedCache, enable);
     }
 
     @Override
     public int enable_load_extension(boolean enable) throws SQLException {
-        return 0;
+        return onoff(ForeignSqlite3.enableLoadExtension, enable);
+    }
+
+    private int onoff(MethodHandle handle, boolean onoff) throws SQLException {
+        try {
+            var resultCode = (int) handle.invokeExact(
+                    sqlite3Handle(), onoff ? 1 : 0
+            );
+            if (resultCode != SQLITE_OK) {
+                throwex(resultCode);
+            }
+            return resultCode;
+        } catch (Throwable t) {
+            throw new SQLException(t);
+        }
     }
 
     /**
@@ -136,14 +178,15 @@ public class ForeignDB extends DB {
         try (var arena = Arena.ofConfined()) {
             var nativeFilename = arena.allocateFrom(filename);
             var nativeDbHandle = arena.allocate(ValueLayout.ADDRESS);
-            var retVal = (int) ForeignSqlite3.openV2.invokeExact(
+            var resultCode = (int) ForeignSqlite3.openV2.invokeExact(
                     nativeFilename,
                     nativeDbHandle,
                     openFlags,
                     MemorySegment.NULL
             );
-            Asserts.state(retVal == 0,
-                    "The database [{0}] could not be opened; error-code={1}", filename, retVal);
+            if (resultCode != SQLITE_OK) {
+                throwex(resultCode);
+            }
 
             // store the pointer value to the sqlite3 db struct
             this.sqlite3Handle = nativeDbHandle.get(ValueLayout.JAVA_LONG, 0);
@@ -163,8 +206,10 @@ public class ForeignDB extends DB {
          */
 
         try {
-            var retVal = (int) ForeignSqlite3.closeV2.invokeExact(sqlite3Handle());
-            assert retVal == 0;
+            var resultCode = (int) ForeignSqlite3.closeV2.invokeExact(sqlite3Handle());
+            if (resultCode != SQLITE_OK) {
+                throwex(resultCode);
+            }
         } catch (Throwable t) {
             throw new SQLException(t);
         }
@@ -193,15 +238,16 @@ public class ForeignDB extends DB {
         try (var arena = Arena.ofConfined()) {
             var nativeSql = arena.allocateFrom(sql);
             var nativeStatementHandle = arena.allocate(ValueLayout.ADDRESS);
-            var retVal = (int) ForeignSqlite3.prepareV2.invokeExact(
+            var resultCode = (int) ForeignSqlite3.prepareV2.invokeExact(
                     sqlite3Handle(),
                     nativeSql,
                     (int) nativeSql.byteSize(),
                     nativeStatementHandle,
                     MemorySegment.NULL
             );
-            Asserts.state(retVal == Codes.SQLITE_OK,
-                    "Failed to prepare the sql query; code={0}, msg={1}", retVal, errmsg());
+            if (resultCode != SQLITE_OK) {
+                throwex(resultCode);
+            }
 
             return new SafeStmtPtr(this, nativeStatementHandle.get(ValueLayout.JAVA_LONG, 0));
         } catch (Throwable e) {
@@ -212,7 +258,11 @@ public class ForeignDB extends DB {
     @Override
     protected int finalize(long stmt) throws SQLException {
         try {
-            return (int) ForeignSqlite3.finalize.invokeExact(MemorySegment.ofAddress(stmt));
+            var resultCode = (int) ForeignSqlite3.finalize.invokeExact(MemorySegment.ofAddress(stmt));
+            if (resultCode != SQLITE_OK) {
+                throwex(resultCode);
+            }
+            return resultCode;
         } catch (Throwable t) {
             throw new SQLException(t);
         }
@@ -221,7 +271,11 @@ public class ForeignDB extends DB {
     @Override
     public int step(long stmt) throws SQLException {
         try {
-            return (int) ForeignSqlite3.step.invokeExact(MemorySegment.ofAddress(stmt));
+            var resultCode = (int) ForeignSqlite3.step.invokeExact(MemorySegment.ofAddress(stmt));
+            if (!(resultCode == SQLITE_ROW || resultCode == SQLITE_DONE)) {
+                throwex(resultCode);
+            }
+            return resultCode;
         } catch (Throwable t) {
             throw new SQLException(t);
         }
@@ -230,7 +284,11 @@ public class ForeignDB extends DB {
     @Override
     public int reset(long stmt) throws SQLException {
         try {
-            return (int) ForeignSqlite3.reset.invokeExact(MemorySegment.ofAddress(stmt));
+            var resultCode = (int) ForeignSqlite3.reset.invokeExact(MemorySegment.ofAddress(stmt));
+            if (resultCode != SQLITE_OK) {
+                throwex(resultCode);
+            }
+            return resultCode;
         } catch (Throwable t) {
             throw new SQLException(t);
         }
@@ -239,7 +297,10 @@ public class ForeignDB extends DB {
     @Override
     public int clear_bindings(long stmt) throws SQLException {
         try {
-            return (int) ForeignSqlite3.clearBindings.invokeExact(MemorySegment.ofAddress(stmt));
+            var resultCode = (int) ForeignSqlite3.clearBindings.invokeExact(MemorySegment.ofAddress(stmt));
+            if (resultCode != SQLITE_OK) {
+                throwex(resultCode);
+            }
         } catch (Throwable t) {
             throw new SQLException(t);
         }
@@ -302,6 +363,14 @@ public class ForeignDB extends DB {
     @Override
     public int column_int(long stmt, int col) throws SQLException {
         return 0;
+    }
+
+    private int column(MethodHandle handle, long stmt, int col) throws SQLException {
+        try {
+            return (int) handle.invokeExact(MemorySegment.ofAddress(stmt));
+        } catch (Throwable t) {
+            throw new SQLException(t);
+        }
     }
 
     @Override
