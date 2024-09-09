@@ -316,7 +316,7 @@ static void xCall(
     JNIEnv *env = 0;
     struct UDFData *udf = 0;
 
-    udf = (struct UDFData*)sqlite3_user_data(context);
+    udf = (struct UDFData*) (context);
     assert(udf);
     (*udf->vm)->AttachCurrentThread(udf->vm, (void **)&env, 0);
     if (!func) func = udf->func;

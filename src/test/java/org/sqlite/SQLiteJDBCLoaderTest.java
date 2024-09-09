@@ -24,8 +24,10 @@
 // --------------------------------------
 package org.sqlite;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatNoException;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Path;
 import java.sql.*;
@@ -33,10 +35,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNoException;
 
 public class SQLiteJDBCLoaderTest {
 
@@ -88,7 +89,7 @@ public class SQLiteJDBCLoaderTest {
                 "total",
                 new Function() {
                     @Override
-                    protected void xFunc() throws SQLException {
+                    public void xFunc() throws SQLException {
                         int sum = 0;
                         for (int i = 0; i < args(); i++) {
                             sum += value_int(i);

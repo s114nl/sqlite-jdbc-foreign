@@ -15,10 +15,11 @@
  */
 package org.sqlite;
 
-import java.sql.Connection;
-import java.sql.SQLException;
 import org.sqlite.core.Codes;
 import org.sqlite.core.DB;
+
+import java.sql.Connection;
+import java.sql.SQLException;
 
 /**
  * Provides an interface for creating SQLite user-defined functions.
@@ -143,7 +144,7 @@ public abstract class Function {
      * Called by SQLite as a custom function. Should access arguments through <tt>value_*(int)</tt>,
      * return results with <tt>result(*)</tt> and throw errors with <tt>error(String)</tt>.
      */
-    protected abstract void xFunc() throws SQLException;
+    public abstract void xFunc() throws SQLException;
 
     /**
      * Returns the number of arguments passed to the function. Can only be called from
@@ -307,7 +308,8 @@ public abstract class Function {
      */
     public abstract static class Aggregate extends Function implements Cloneable {
         /** @see org.sqlite.Function#xFunc() */
-        protected final void xFunc() {}
+        public final void xFunc() {
+        }
 
         /**
          * Defines the abstract aggregate callback function

@@ -1,7 +1,12 @@
 package org.sqlite;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.catchThrowable;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+import org.sqlite.core.DB;
+import org.sqlite.core.NativeDBHelper;
 
 import java.nio.file.Path;
 import java.sql.Connection;
@@ -12,13 +17,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
-import org.sqlite.core.DB;
-import org.sqlite.core.NativeDBHelper;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.catchThrowable;
 
 public class BusyHandlerTest {
     private Connection conn;
@@ -63,7 +64,7 @@ public class BusyHandlerTest {
                     "wait_for_latch",
                     new Function() {
                         @Override
-                        protected void xFunc() throws SQLException {
+                        public void xFunc() throws SQLException {
                             lockedLatch.countDown();
                             try {
                                 completeLatch.await();

@@ -1,19 +1,15 @@
 package org.sqlite;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.data.Offset.offset;
-
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
-import java.util.LinkedList;
-import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+
+import java.sql.*;
+import java.util.LinkedList;
+import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.data.Offset.offset;
 
 /** Tests User Defined Functions. */
 public class UDFTest {
@@ -282,7 +278,7 @@ public class UDFTest {
                 "inform",
                 new Function() {
                     @Override
-                    protected void xFunc() throws SQLException {
+                    public void xFunc() throws SQLException {
                         gotTrigger = value_int(0);
                     }
                 });
@@ -516,7 +512,7 @@ public class UDFTest {
                     int sum = 0;
 
                     @Override
-                    protected void xFunc() {
+                    public void xFunc() {
                         try {
                             sum += value_int(1);
                         } catch (SQLException e) {

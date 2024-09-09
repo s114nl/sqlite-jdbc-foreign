@@ -14,7 +14,6 @@ public class ForeignSqlite3 {
         symbols = lookupSqlite3Library();
     }
 
-
     private static SymbolLookup lookupSqlite3Library() {
         var library = new File("/Users/epdittmer/Downloads/sqlite-amalgamation-3460100", "out");
         if (!library.exists()) {
@@ -23,24 +22,370 @@ public class ForeignSqlite3 {
         return SymbolLookup.libraryLookup(library.getAbsolutePath(), Arena.global());
     }
 
+    static final MethodHandle bindBlob = _bindBlob();
+    static final MethodHandle bindDouble = _bindDouble();
+    static final MethodHandle bindInt = _bindInt();
+    static final MethodHandle bindLong = _bindLong();
+    static final MethodHandle bindNull = _bindNull();
     static final MethodHandle bindParameterCount = _bindParameterCount();
+    static final MethodHandle bindText = _bindText();
     static final MethodHandle busyHandler = _busyHandler();
     static final MethodHandle busyTimeout = _busyTimeOut();
+    static final MethodHandle changes = _changes();
     static final MethodHandle clearBindings = _clearBindings();
     static final MethodHandle closeV2 = _closeV2();
+    static final MethodHandle columnBlob = _columnBlob();
+    static final MethodHandle columnBytes = _columnBytes();
+    static final MethodHandle columnCount = _columnCount();
+    static final MethodHandle columnDecltype = _columnDecltype();
+    static final MethodHandle columnDouble = _columnDouble();
+    static final MethodHandle columnInt = _columnInt();
+    static final MethodHandle columnInt64 = _columnInt64();
+    static final MethodHandle columnName = _columName();
+    static final MethodHandle columnTableName = _columnTableName();
+    static final MethodHandle columnText = _columnText();
+    static final MethodHandle columnType = _columnType();
+    static final MethodHandle createFunctionV2 = _createFunctionV2();
+    static final MethodHandle enableLoadExtension = _enableLoadExtension();
+    static final MethodHandle enableSharedCache = _enableSharedCache();
     static final MethodHandle errmsg = _errmsg();
     static final MethodHandle exec = _exec();
     static final MethodHandle finalize = _finalize();
     static final MethodHandle interrupt = _interrupt();
+    static final MethodHandle libversion = _libversion();
     static final MethodHandle openV2 = _openV2();
     static final MethodHandle prepareV2 = _prepareV2();
     static final MethodHandle reset = _reset();
     static final MethodHandle step = _step();
-    static final MethodHandle libversion = _libversion();
-    static final MethodHandle changes = _changes();
     static final MethodHandle totalChanges = _totalChanges();
-    static final MethodHandle enableSharedCache = _enableSharedCache();
-    static final MethodHandle enableLoadExtension = _enableLoadExtension();
+
+    /**
+     * <a href="https://www.sqlite.org/c3ref/bind_blob.html">bind blob</a>
+     *
+     * <pre>
+     *      int sqlite3_bind_blob(sqlite3_stmt*, int, const void*, int n, void(*)(void*));
+     * </pre>
+     */
+    private static MethodHandle _bindBlob() {
+        var addr = resolveSymbol("sqlite3_bind_blob");
+        var descriptor = FunctionDescriptor.of(
+                ValueLayout.JAVA_INT,   // return int
+                ValueLayout.ADDRESS,    // sqlite3_stmt *
+                ValueLayout.JAVA_INT,   // int
+                ValueLayout.ADDRESS,    // const void*
+                ValueLayout.JAVA_INT,   // int
+                ValueLayout.ADDRESS     // void(*)(void*)
+        );
+        return linker.downcallHandle(addr, descriptor);
+    }
+
+    /**
+     * <a href="https://www.sqlite.org/c3ref/bind_blob.html">bind text</a>
+     *
+     * <pre>
+     *      int sqlite3_bind_text(sqlite3_stmt*,int,const char*,int,void(*)(void*));
+     * </pre>
+     */
+    private static MethodHandle _bindText() {
+        var addr = resolveSymbol("sqlite3_bind_text");
+        var descriptor = FunctionDescriptor.of(
+                ValueLayout.JAVA_INT,   // return int
+                ValueLayout.ADDRESS,    // sqlite3_stmt *
+                ValueLayout.JAVA_INT,   // int
+                ValueLayout.ADDRESS,    // const char*
+                ValueLayout.JAVA_INT,   // int
+                ValueLayout.ADDRESS     // void(*)(void*)
+        );
+        return linker.downcallHandle(addr, descriptor);
+    }
+
+    /**
+     * <a href="https://www.sqlite.org/c3ref/bind_blob.html">bind double</a>
+     *
+     * <pre>
+     *      int sqlite3_bind_double(sqlite3_stmt*, int, double);
+     * </pre>
+     */
+    private static MethodHandle _bindDouble() {
+        var addr = resolveSymbol("sqlite3_bind_double");
+        var descriptor = FunctionDescriptor.of(
+                ValueLayout.JAVA_INT,   // return int
+                ValueLayout.ADDRESS,    // sqlite3_stmt *
+                ValueLayout.JAVA_INT,   // int
+                ValueLayout.JAVA_DOUBLE // double
+        );
+        return linker.downcallHandle(addr, descriptor);
+    }
+
+    /**
+     * <a href="https://www.sqlite.org/c3ref/bind_blob.html">bind int64</a>
+     *
+     * <pre>
+     *      int sqlite3_bind_int64(sqlite3_stmt*, int, sqlite3_int64);
+     * </pre>
+     */
+    private static MethodHandle _bindLong() {
+        var addr = resolveSymbol("sqlite3_bind_int64");
+        var descriptor = FunctionDescriptor.of(
+                ValueLayout.JAVA_INT,  // return int
+                ValueLayout.ADDRESS,   // sqlite3_stmt *
+                ValueLayout.JAVA_INT,  // int
+                ValueLayout.JAVA_LONG  // long
+        );
+        return linker.downcallHandle(addr, descriptor);
+    }
+
+    /**
+     * <a href="https://www.sqlite.org/c3ref/bind_blob.html">bind int</a>
+     *
+     * <pre>
+     *      int sqlite3_bind_int(sqlite3_stmt*, int, int);
+     * </pre>
+     */
+    private static MethodHandle _bindInt() {
+        var addr = resolveSymbol("sqlite3_bind_int");
+        var descriptor = FunctionDescriptor.of(
+                ValueLayout.JAVA_INT,  // return int
+                ValueLayout.ADDRESS,   // sqlite3_stmt *
+                ValueLayout.JAVA_INT,  // int
+                ValueLayout.JAVA_INT   // int
+        );
+        return linker.downcallHandle(addr, descriptor);
+    }
+
+    /**
+     * <a href="https://www.sqlite.org/c3ref/bind_blob.html">bind null</a>
+     *
+     * <pre>
+     *     int sqlite3_bind_null(sqlite3_stmt*, int);
+     * </pre>
+     */
+    private static MethodHandle _bindNull() {
+        var addr = resolveSymbol("sqlite3_bind_null");
+        var descriptor = FunctionDescriptor.of(
+                ValueLayout.JAVA_INT,  // return int
+                ValueLayout.ADDRESS,   // sqlite3_stmt *
+                ValueLayout.JAVA_INT   // int
+        );
+        return linker.downcallHandle(addr, descriptor);
+    }
+
+    /**
+     * <a href="https://www.sqlite.org/c3ref/create_function.html">create function</a>
+     *
+     * <pre>
+     * int sqlite3_create_function_v2(
+     *   sqlite3 *db,
+     *   const char *zFunctionName,
+     *   int nArg,
+     *   int eTextRep,
+     *   void *pApp,
+     *   void (*xFunc)(sqlite3_context*,int,sqlite3_value**),
+     *   void (*xStep)(sqlite3_context*,int,sqlite3_value**),
+     *   void (*xFinal)(sqlite3_context*),
+     *   void(*xDestroy)(void*)
+     * );
+     * </pre>
+     */
+    private static MethodHandle _createFunctionV2() {
+        var addr = resolveSymbol("sqlite3_create_function_v2");
+        var descriptor = FunctionDescriptor.of(
+                ValueLayout.JAVA_INT,  // return int
+                ValueLayout.ADDRESS,   // sqlite3 *
+                ValueLayout.ADDRESS,   // const char *zFunctionName
+                ValueLayout.JAVA_INT,  // int
+                ValueLayout.JAVA_INT,  // int,
+                ValueLayout.ADDRESS,   // void (*xFunc)(sqlite3_context*,int,sqlite3_value**)
+                ValueLayout.ADDRESS,   // void (*xStep)(sqlite3_context*,int,sqlite3_value**)
+                ValueLayout.ADDRESS,   // void (*xFinal)(sqlite3_context*),
+                ValueLayout.ADDRESS    // void(*xDestroy)(void*)
+        );
+        return linker.downcallHandle(addr, descriptor);
+    }
+
+    /**
+     * <a href="https://www.sqlite.org/c3ref/column_blob.html">column bytes</a>
+     *
+     * <pre>
+     *     int sqlite3_column_bytes(sqlite3_stmt*, int iCol);
+     * </pre>
+     */
+    private static MethodHandle _columnBytes() {
+        var addr = resolveSymbol("sqlite3_column_bytes");
+        var descriptor = FunctionDescriptor.of(
+                ValueLayout.JAVA_INT,  // return int
+                ValueLayout.ADDRESS,   // sqlite3_stmt *
+                ValueLayout.JAVA_INT   // int
+        );
+        return linker.downcallHandle(addr, descriptor);
+    }
+
+    /**
+     * <a href="https://www.sqlite.org/c3ref/column_blob.html">column int64</a>
+     *
+     * <pre>
+     *     sqlite3_int64 sqlite3_column_int64(sqlite3_stmt*, int iCol);
+     * </pre>
+     */
+    private static MethodHandle _columnInt64() {
+        var addr = resolveSymbol("sqlite3_column_int64");
+        var descriptor = FunctionDescriptor.of(
+                ValueLayout.JAVA_LONG,  // return double
+                ValueLayout.ADDRESS,    // sqlite3_stmt *
+                ValueLayout.JAVA_INT    // int
+        );
+        return linker.downcallHandle(addr, descriptor);
+    }
+
+    /**
+     * <a href="https://www.sqlite.org/c3ref/column_blob.html">column double</a>
+     *
+     * <pre>
+     *     int sqlite3_column_int(sqlite3_stmt*, int iCol);
+     * </pre>
+     */
+    private static MethodHandle _columnInt() {
+        var addr = resolveSymbol("sqlite3_column_int");
+        var descriptor = FunctionDescriptor.of(
+                ValueLayout.JAVA_INT,  // return double
+                ValueLayout.ADDRESS,   // sqlite3_stmt *
+                ValueLayout.JAVA_INT   // int
+        );
+        return linker.downcallHandle(addr, descriptor);
+    }
+
+
+    /**
+     * <a href="https://www.sqlite.org/c3ref/column_blob.html">column double</a>
+     *
+     * <pre>
+     *     double sqlite3_column_double(sqlite3_stmt*, int iCol);
+     * </pre>
+     */
+    private static MethodHandle _columnDouble() {
+        var addr = resolveSymbol("sqlite3_column_double");
+        var descriptor = FunctionDescriptor.of(
+                ValueLayout.JAVA_DOUBLE,  // return double
+                ValueLayout.ADDRESS,      // sqlite3_stmt *
+                ValueLayout.JAVA_INT      // int
+        );
+        return linker.downcallHandle(addr, descriptor);
+    }
+
+    /**
+     * <a href="https://www.sqlite.org/c3ref/column_blob.html">column text</a>
+     *
+     * <pre>
+     *     const unsigned char *sqlite3_column_text(sqlite3_stmt*, int iCol);
+     * </pre>
+     */
+    private static MethodHandle _columnText() {
+        var addr = resolveSymbol("sqlite3_column_text");
+        var descriptor = FunctionDescriptor.of(
+                ValueLayout.ADDRESS,  // const unsigned char *
+                ValueLayout.ADDRESS,  // sqlite3_stmt *
+                ValueLayout.JAVA_INT  // int
+        );
+        return linker.downcallHandle(addr, descriptor);
+    }
+
+    /**
+     * <a href="https://www.sqlite.org/c3ref/column_blob.html">column blob</a>
+     *
+     * <pre>
+     *     const void *sqlite3_column_blob(sqlite3_stmt*, int iCol);
+     * </pre>
+     */
+    private static MethodHandle _columnBlob() {
+        var addr = resolveSymbol("sqlite3_column_blob");
+        var descriptor = FunctionDescriptor.of(
+                ValueLayout.ADDRESS,  // result const void *
+                ValueLayout.ADDRESS,  // sqlite3_stmt *
+                ValueLayout.JAVA_INT  // int
+        );
+        return linker.downcallHandle(addr, descriptor);
+    }
+
+    /**
+     * <a href="https://www.sqlite.org/c3ref/column_decltype.html">column decltype</a>
+     *
+     * <pre>
+     *     const char *sqlite3_column_decltype(sqlite3_stmt*,int);
+     * </pre>
+     */
+    private static MethodHandle _columnDecltype() {
+        var addr = resolveSymbol("sqlite3_column_decltype");
+        var descriptor = FunctionDescriptor.of(
+                ValueLayout.ADDRESS,  // result const char *
+                ValueLayout.ADDRESS,  // sqlite3_stmt *pStmt
+                ValueLayout.JAVA_INT  // int
+        );
+        return linker.downcallHandle(addr, descriptor);
+    }
+
+    /**
+     * <a href="https://www.sqlite.org/c3ref/column_blob.html">column blob</a>
+     * <pre>
+     *     int sqlite3_column_type(sqlite3_stmt*, int iCol);
+     * </pre>
+     */
+    private static MethodHandle _columnType() {
+        var addr = resolveSymbol("sqlite3_column_type");
+        var descriptor = FunctionDescriptor.of(
+                ValueLayout.JAVA_INT, // result int
+                ValueLayout.ADDRESS,  // sqlite3_stmt *pStmt
+                ValueLayout.JAVA_INT  // int
+        );
+        return linker.downcallHandle(addr, descriptor);
+    }
+
+    /**
+     * <a href="https://www.sqlite.org/c3ref/column_database_name.html">column database name</a>
+     * <pre>
+     *     const char *sqlite3_column_table_name(sqlite3_stmt*,int);
+     * </pre>
+     */
+    private static MethodHandle _columnTableName() {
+        var addr = resolveSymbol("sqlite3_column_table_name");
+        var descriptor = FunctionDescriptor.of(
+                ValueLayout.ADDRESS, // result const char *
+                ValueLayout.ADDRESS,  // sqlite3_stmt *pStmt
+                ValueLayout.JAVA_INT  // int
+        );
+        return linker.downcallHandle(addr, descriptor);
+    }
+
+    /**
+     * <a href="https://www.sqlite.org/c3ref/column_name.html">column name</a>
+     *
+     * <pre>
+     *     const char *sqlite3_column_name(sqlite3_stmt*, int N)
+     * </pre>
+     */
+    private static MethodHandle _columName() {
+        var addr = resolveSymbol("sqlite3_column_name");
+        var descriptor = FunctionDescriptor.of(
+                ValueLayout.ADDRESS, // result const char *
+                ValueLayout.ADDRESS,  // sqlite3_stmt *pStmt
+                ValueLayout.JAVA_INT  // int
+        );
+        return linker.downcallHandle(addr, descriptor);
+    }
+
+    /**
+     * <a href="https://www.sqlite.org/c3ref/column_count.html">column count</a>
+     * <pre>
+     *     int sqlite3_column_count(sqlite3_stmt *pStmt);
+     * </pre>
+     */
+    private static MethodHandle _columnCount() {
+        var addr = resolveSymbol("sqlite3_column_count");
+        var descriptor = FunctionDescriptor.of(
+                ValueLayout.JAVA_INT,  // result int
+                ValueLayout.ADDRESS   // sqlite3_stmt *pStmt
+        );
+        return linker.downcallHandle(addr, descriptor);
+    }
 
     /**
      * <a href="https://www.sqlite.org/c3ref/enable_load_extension.html">enable load extension</a>
@@ -51,7 +396,8 @@ public class ForeignSqlite3 {
     private static MethodHandle _enableLoadExtension() {
         var addr = resolveSymbol("sqlite3_enable_load_extension");
         var descriptor = FunctionDescriptor.of(
-                ValueLayout.JAVA_INT,  // result int
+                ValueLayout.JAVA_INT,   // result int
+                ValueLayout.ADDRESS,    // sqlite3 *db
                 ValueLayout.JAVA_INT    // int (1 = on, 0 = off)
         );
         return linker.downcallHandle(addr, descriptor);
@@ -80,7 +426,7 @@ public class ForeignSqlite3 {
      * </pre>
      */
     private static MethodHandle _totalChanges() {
-        var addr = resolveSymbol("total_changes");
+        var addr = resolveSymbol("sqlite3_total_changes");
         var descriptor = FunctionDescriptor.of(
                 ValueLayout.JAVA_INT,  // result int
                 ValueLayout.ADDRESS    // sqlite3*
