@@ -4,6 +4,7 @@ module org.xerial.sqlitejdbc {
     requires transitive java.sql;
     requires transitive java.sql.rowset;
     requires static org.graalvm.nativeimage;
+    requires jdk.jfr;
 
     exports org.sqlite;
     exports org.sqlite.core;

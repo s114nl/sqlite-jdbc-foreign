@@ -13,6 +13,8 @@ import java.sql.SQLException;
 
 import static java.lang.foreign.Linker.nativeLinker;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.sqlite.core.ForeignFunctionHandler.xFuncMethodType;
+import static org.sqlite.core.ForeignSqlite3.SQLITE_TRANSIENT;
 
 public class ForeignDB extends DB {
 
@@ -28,6 +30,10 @@ public class ForeignDB extends DB {
 
     private MemorySegment sqlite3Handle() {
         return ref(sqlite3Handle);
+    }
+
+    private static MemorySegment ptr(Long address) {
+        return MemorySegment.ofAddress(address);
     }
 
     public ForeignDB(String url, String fileName, SQLiteConfig config) throws SQLException {
@@ -246,17 +252,13 @@ public class ForeignDB extends DB {
         try (var arena = Arena.ofConfined()) {
             var nativeSql = arena.allocateFrom(sql);
             var nativeStatementHandle = arena.allocate(ValueLayout.ADDRESS);
-            var resultCode = (int) ForeignSqlite3.prepareV2.invokeExact(
+            invokeIntExactChecked(ForeignSqlite3.prepareV2,
                     sqlite3Handle(),
                     nativeSql,
                     (int) nativeSql.byteSize(),
                     nativeStatementHandle,
                     MemorySegment.NULL
             );
-            if (resultCode != SQLITE_OK) {
-                throwex(resultCode);
-            }
-
             return new SafeStmtPtr(this, nativeStatementHandle.get(ValueLayout.JAVA_LONG, 0));
         } catch (Throwable e) {
             throw new SQLException(e);
@@ -266,7 +268,7 @@ public class ForeignDB extends DB {
     @Override
     public int step(long stmt) throws SQLException {
         try {
-            var resultCode = (int) ForeignSqlite3.step.invokeExact(MemorySegment.ofAddress(stmt));
+            var resultCode = invokeIntExact(ForeignSqlite3.step, ptr(stmt));
             if (!(resultCode == SQLITE_ROW || resultCode == SQLITE_DONE)) {
                 throwex(resultCode);
             }
@@ -278,47 +280,47 @@ public class ForeignDB extends DB {
 
     @Override
     int bind_parameter_count(long stmt) throws SQLException {
-        return invokeIntExact(ForeignSqlite3.bindParameterCount, MemorySegment.ofAddress(stmt));
+        return invokeIntExact(ForeignSqlite3.bindParameterCount, ptr(stmt));
     }
 
     @Override
     public int clear_bindings(long stmt) throws SQLException {
-        return invokeIntExactChecked(ForeignSqlite3.clearBindings, MemorySegment.ofAddress(stmt));
+        return invokeIntExactChecked(ForeignSqlite3.clearBindings, ptr(stmt));
     }
 
     @Override
     public int reset(long stmt) throws SQLException {
-        return invokeIntExactChecked(ForeignSqlite3.reset, MemorySegment.ofAddress(stmt));
+        return invokeIntExactChecked(ForeignSqlite3.reset, ptr(stmt));
     }
 
     @Override
     protected int finalize(long stmt) throws SQLException {
-        return invokeIntExactChecked(ForeignSqlite3.finalize, MemorySegment.ofAddress(stmt));
+        return invokeIntExactChecked(ForeignSqlite3.finalize, ptr(stmt));
     }
 
     @Override
     public int column_count(long stmt) throws SQLException {
-        return invokeIntExact(ForeignSqlite3.columnCount, MemorySegment.ofAddress(stmt));
+        return invokeIntExact(ForeignSqlite3.columnCount, ptr(stmt));
     }
 
     @Override
     public int column_type(long stmt, int col) throws SQLException {
-        return invokeIntExact(ForeignSqlite3.columnType, MemorySegment.ofAddress(stmt), col);
+        return invokeIntExact(ForeignSqlite3.columnType, ptr(stmt), col);
     }
 
     @Override
     public String column_decltype(long stmt, int col) throws SQLException {
-        return invokeStringExact(ForeignSqlite3.columnDecltype, MemorySegment.ofAddress(stmt), col);
+        return invokeStringExact(ForeignSqlite3.columnDecltype, ptr(stmt), col);
     }
 
     @Override
     public String column_table_name(long stmt, int col) throws SQLException {
-        return invokeStringExact(ForeignSqlite3.columnTableName, stmt, col);
+        return invokeStringExact(ForeignSqlite3.columnTableName, ptr(stmt), col);
     }
 
     @Override
     public String column_name(long stmt, int col) throws SQLException {
-        return invokeStringExact(ForeignSqlite3.columnName, stmt, col);
+        return invokeStringExact(ForeignSqlite3.columnName, ptr(stmt), col);
     }
 
     @Override
@@ -329,16 +331,13 @@ public class ForeignDB extends DB {
               - sqlite3_column_text() followed by sqlite3_column_bytes()
               - sqlite3_column_blob() followed by sqlite3_column_bytes()
              */
-            var result = (MemorySegment) ForeignSqlite3.columnText.invokeExact(
-                    MemorySegment.ofAddress(stmt),
-                    col
-            );
+            var result = (MemorySegment) invokeExact(ForeignSqlite3.columnText, ptr(stmt), col);
 
             if (result.equals(MemorySegment.NULL)) {
                 return null;
             } else {
                 return result
-                        .reinterpret(Integer.MAX_VALUE)
+                        .reinterpret(getBytes(stmt, col) + 1) // include the \0
                         .getString(0);
             }
 
@@ -355,16 +354,14 @@ public class ForeignDB extends DB {
               - sqlite3_column_text() followed by sqlite3_column_bytes()
               - sqlite3_column_blob() followed by sqlite3_column_bytes()
              */
-            var result = (MemorySegment) ForeignSqlite3.columnBlob.invokeExact(
-                    MemorySegment.ofAddress(stmt),
-                    col
-            );
+            var result = (MemorySegment) invokeExact(ForeignSqlite3.columnBlob, ptr(stmt), col);
 
             if (result.equals(MemorySegment.NULL)) {
-                return new byte[]{};
+                return null;
             } else {
                 return result
-                        .asSlice(0, getBytes(stmt, col))
+                        .reinterpret(getBytes(stmt, col))
+                        .asSlice(0)
                         .toArray(ValueLayout.JAVA_BYTE);
             }
 
@@ -374,58 +371,57 @@ public class ForeignDB extends DB {
     }
 
     private int getBytes(long stmt, int col) throws SQLException {
-        return invokeIntExact(ForeignSqlite3.columnBytes, MemorySegment.ofAddress(stmt), col);
+        return invokeIntExact(ForeignSqlite3.columnBytes, ptr(stmt), col);
     }
 
     @Override
     public double column_double(long stmt, int col) throws SQLException {
-        return (double) invokeExact(ForeignSqlite3.columnDouble, MemorySegment.ofAddress(stmt), col);
+        return (double) invokeExact(ForeignSqlite3.columnDouble, ptr(stmt), col);
     }
 
     @Override
     public long column_long(long stmt, int col) throws SQLException {
-        return (long) invokeExact(ForeignSqlite3.columnInt64, MemorySegment.ofAddress(stmt), col);
+        return (long) invokeExact(ForeignSqlite3.columnInt64, ptr(stmt), col);
     }
 
     @Override
     public int column_int(long stmt, int col) throws SQLException {
-        return (int) invokeExact(ForeignSqlite3.columnInt, MemorySegment.ofAddress(stmt), col);
+        return (int) invokeExact(ForeignSqlite3.columnInt, ptr(stmt), col);
     }
 
     @Override
     int bind_null(long stmt, int pos) throws SQLException {
-        return invokeIntExactChecked(ForeignSqlite3.bindNull, MemorySegment.ofAddress(stmt), pos);
+        return invokeIntExactChecked(ForeignSqlite3.bindNull, ptr(stmt), pos);
     }
 
     @Override
     int bind_int(long stmt, int pos, int v) throws SQLException {
-        return invokeIntExactChecked(ForeignSqlite3.bindInt, MemorySegment.ofAddress(stmt), pos, v);
+        return invokeIntExactChecked(ForeignSqlite3.bindInt, ptr(stmt), pos, v);
     }
 
     @Override
     int bind_long(long stmt, int pos, long v) throws SQLException {
-        return invokeIntExactChecked(ForeignSqlite3.bindLong, MemorySegment.ofAddress(stmt), pos, v);
+        return invokeIntExactChecked(ForeignSqlite3.bindLong, ptr(stmt), pos, v);
     }
 
     @Override
     int bind_double(long stmt, int pos, double v) throws SQLException {
-        return invokeIntExactChecked(ForeignSqlite3.bindDouble, MemorySegment.ofAddress(stmt), pos, v);
+        return invokeIntExactChecked(ForeignSqlite3.bindDouble, ptr(stmt), pos, v);
     }
 
     @Override
     int bind_text(long stmt, int pos, String v) throws SQLException {
         // Use try-with-resources to manage the lifetime of off-heap memory
         try (var arena = Arena.ofConfined()) {
-            var nativeText = arena.allocateFrom(v);
+            var nativeText = v != null ? arena.allocateFrom(v) : MemorySegment.NULL;
+            var nativeTextSize = (int) nativeText.byteSize(); // TODO validate size
 
-            // int sqlite3_bind_text(sqlite3_stmt*,int,const char*,int,void(*)(void*));
-            return invokeIntExactChecked(
-                    ForeignSqlite3.bindText,
-                    MemorySegment.ofAddress(stmt),
+            return invokeIntExactChecked(ForeignSqlite3.bindText,
+                    ptr(stmt),
                     pos,
                     nativeText,
-                    nativeText.byteSize(),
-                    -1 // SQLITE_TRANSIENT
+                    nativeTextSize,
+                    SQLITE_TRANSIENT
             );
         }
     }
@@ -438,50 +434,75 @@ public class ForeignDB extends DB {
             nativeByteArray.asByteBuffer().put(v);
 
             // int sqlite3_bind_blob(sqlite3_stmt*, int, const void*, int n, void(*)(void*));
-            return invokeIntExactChecked(
-                    ForeignSqlite3.bindBlob,
-                    MemorySegment.ofAddress(stmt),
+            return invokeIntExactChecked(ForeignSqlite3.bindBlob,
+                    ptr(stmt),
                     pos,
                     nativeByteArray,
-                    nativeByteArray.byteSize(),
-                    -1 // SQLITE_TRANSIENT
+                    (int) nativeByteArray.byteSize(),
+                    SQLITE_TRANSIENT
             );
         }
     }
 
     @Override
     public void result_null(long context) throws SQLException {
-
+        invokeVoidExact(ForeignSqlite3.resultNull, ptr(context));
     }
 
     @Override
     public void result_text(long context, String val) throws SQLException {
+        try (var arena = Arena.ofConfined()) {
+            var nativeText = val != null ? arena.allocateFrom(val) : MemorySegment.NULL;
+            var nativeTextSize = (int) nativeText.byteSize(); // TODO check size against limit
 
+            invokeVoidExact(ForeignSqlite3.resultText,
+                    ptr(context),
+                    nativeText,
+                    nativeTextSize,
+                    SQLITE_TRANSIENT
+            );
+        }
     }
 
     @Override
     public void result_blob(long context, byte[] val) throws SQLException {
+        try (var arena = Arena.ofConfined()) {
+            var nativeByteArray = arena.allocate(val.length);
+            nativeByteArray.asByteBuffer().put(val);
 
+            invokeVoidExact(ForeignSqlite3.resultBlob,
+                    ptr(context),
+                    nativeByteArray,
+                    (int) nativeByteArray.byteSize(),
+                    SQLITE_TRANSIENT
+            );
+        }
     }
 
     @Override
     public void result_double(long context, double val) throws SQLException {
-
+        invokeVoidExact(ForeignSqlite3.resultDouble, ptr(context), val);
     }
 
     @Override
     public void result_long(long context, long val) throws SQLException {
-
+        invokeVoidExact(ForeignSqlite3.resultInt64, ptr(context), val);
     }
 
     @Override
     public void result_int(long context, int val) throws SQLException {
-
+        invokeVoidExact(ForeignSqlite3.resultInt, ptr(context), val);
     }
 
     @Override
     public void result_error(long context, String err) throws SQLException {
+        try (var arena = Arena.ofConfined()) {
+            var nativeText = err != null ? arena.allocateFrom(err) : MemorySegment.NULL;
+            var nativeTextSize = (int) nativeText.byteSize();
 
+            // void sqlite3_result_error(sqlite3_context*, const char*, int);
+            invokeVoidExact(ForeignSqlite3.resultError, ptr(context), nativeText, nativeTextSize);
+        }
     }
 
     @Override
@@ -514,28 +535,6 @@ public class ForeignDB extends DB {
         return 0;
     }
 
-    public static class NativeFunctionHandler {
-        private final Function f;
-
-        public NativeFunctionHandler(Function f) {
-            this.f = f;
-        }
-
-        /**
-         * <pre>
-         *     void (*xFunc)(sqlite3_context*,int,sqlite3_value**),
-         * </pre>
-         *
-         * @param context     the sqlite3_context pointer
-         * @param nArg        the number of arguments
-         * @param valueHandle the argument values
-         */
-        @SuppressWarnings("unused")
-        public void xFunc(MemorySegment context, int nArg, MemorySegment valueHandle) throws SQLException {
-            f.xFunc();
-        }
-    }
-
     @Override
     public int create_function(String name, Function f, int nArgs, int flags) throws SQLException {
         Asserts.state(name.getBytes(UTF_8).length <= 255,
@@ -544,24 +543,20 @@ public class ForeignDB extends DB {
         var isAggregateFunction = f instanceof Function.Aggregate;
         var isWindowingFunction = f instanceof Function.Window;
 
-        var nativeFunctionHandler = new NativeFunctionHandler(f);
+        // TODO: What is the life-time of this receiver?
+        var xFuncHandler = new ForeignFunctionHandler(f);
 
         // Use try-with-resources to manage the lifetime of off-heap memory
         try (var arena = Arena.ofConfined()) {
             var nativeName = arena.allocateFrom(name);
 
             // TODO check exceptions
-            // void (*xFunc)(sqlite3_context*,int,sqlite3_value**),
             var xFunc = MethodHandles.lookup()
-                    .bind(nativeFunctionHandler, "xFunc", MethodType.methodType(
-                            Void.class,             // return void
-                            MemorySegment.class,    // sqlite3_context*
-                            int.class,              // int
-                            MemorySegment.class     // sqlite3_value**
-                    ));
-            var xFuncDescriptor = ForeignSqlite3.NativeBusyHandlerCallback.descriptor;
+                    .findVirtual(ForeignFunctionHandler.class, "xFunc", xFuncMethodType);
+            var xFuncBinding = xFunc.bindTo(xFuncHandler);
+            var xFuncDescriptor = ForeignSqlite3.CreateFunctionV2NativeCallbacks.xFuncDescriptor;
             var xFuncHandle = nativeLinker()
-                    .upcallStub(xFunc, xFuncDescriptor, Arena.global());
+                    .upcallStub(xFuncBinding, xFuncDescriptor, Arena.global());
 
             return invokeIntExactChecked(ForeignSqlite3.createFunctionV2,
                     sqlite3Handle(),        // sqlite3 *db
@@ -617,7 +612,7 @@ public class ForeignDB extends DB {
 
     @Override
     public int limit(int id, int value) throws SQLException {
-        return 0;
+        return invokeIntExact(ForeignSqlite3.limit, id, value);
     }
 
     @Override

@@ -22,6 +22,24 @@ public class ForeignSqlite3 {
         return SymbolLookup.libraryLookup(library.getAbsolutePath(), Arena.global());
     }
 
+    // consts
+    static final MemorySegment SQLITE_TRANSIENT = MemorySegment.ofAddress(-1);
+
+    // consts limits
+    static final int SQLITE_LIMIT_LENGTH = 0;
+    static final int SQLITE_LIMIT_SQL_LENGTH = 1;
+    static final int SQLITE_LIMIT_COLUMN = 2;
+    static final int SQLITE_LIMIT_EXPR_DEPTH = 3;
+    static final int SQLITE_LIMIT_COMPOUND_SELECT = 4;
+    static final int SQLITE_LIMIT_VDBE_OP = 5;
+    static final int SQLITE_LIMIT_FUNCTION_ARG = 6;
+    static final int SQLITE_LIMIT_ATTACHED = 7;
+    static final int SQLITE_LIMIT_LIKE_PATTERN_LENGTH = 8;
+    static final int SQLITE_LIMIT_VARIABLE_NUMBER = 9;
+    static final int SQLITE_LIMIT_TRIGGER_DEPTH = 10;
+    static final int SQLITE_LIMIT_WORKER_THREADS = 11;
+
+    // functions
     static final MethodHandle bindBlob = _bindBlob();
     static final MethodHandle bindDouble = _bindDouble();
     static final MethodHandle bindInt = _bindInt();
@@ -58,6 +76,91 @@ public class ForeignSqlite3 {
     static final MethodHandle reset = _reset();
     static final MethodHandle step = _step();
     static final MethodHandle totalChanges = _totalChanges();
+    static final MethodHandle limit = _limit();
+    static final MethodHandle resultNull = _resultNull();
+    static final MethodHandle resultText = _resultText();
+    static final MethodHandle resultBlob = _resultBlob();
+    static final MethodHandle resultDouble = _resultDouble();
+    static final MethodHandle resultInt64 = _resultInt64();
+    static final MethodHandle resultInt = _resultInt();
+    static final MethodHandle resultError = _resultError();
+
+    private static MethodHandle _resultInt64() {
+        return null;
+    }
+
+    private static MethodHandle _resultInt() {
+        return null;
+    }
+
+    private static MethodHandle _resultDouble() {
+        return null;
+    }
+
+    /**
+     * <a href="https://www.sqlite.org/c3ref/result_blob.html">result error</a>
+     * <pre>
+     *     void sqlite3_result_error(sqlite3_context*, const char*, int);
+     * </pre>
+     */
+    private static MethodHandle _resultError() {
+        var addr = resolveSymbol("sqlite3_result_error");
+        var descriptor = FunctionDescriptor.ofVoid(
+                ValueLayout.ADDRESS,   // sqlite3_context *
+                ValueLayout.ADDRESS,   // const char *
+                ValueLayout.JAVA_INT   // int
+        );
+        return linker.downcallHandle(addr, descriptor);
+    }
+
+    /**
+     * <a href="https://www.sqlite.org/c3ref/result_blob.html">result blob</a>
+     * <pre>
+     *     void sqlite3_result_blob(sqlite3_context*, const void*, int, void(*)(void*));
+     * </pre>
+     */
+    private static MethodHandle _resultBlob() {
+        var addr = resolveSymbol("sqlite3_result_blob");
+        var descriptor = FunctionDescriptor.ofVoid(
+                ValueLayout.ADDRESS,   // sqlite3_context *
+                ValueLayout.ADDRESS,   // const void *
+                ValueLayout.JAVA_INT,  // int
+                ValueLayout.ADDRESS    // void(*)(void*)
+        );
+        return linker.downcallHandle(addr, descriptor);
+    }
+
+
+    /**
+     * <a href="https://www.sqlite.org/c3ref/result_blob.html">result text</a>
+     * <pre>
+     *     void sqlite3_result_text(sqlite3_context*, const char*, int, void(*)(void*));
+     * </pre>
+     */
+    private static MethodHandle _resultText() {
+        var addr = resolveSymbol("sqlite3_result_text");
+        var descriptor = FunctionDescriptor.ofVoid(
+                ValueLayout.ADDRESS,   // sqlite3_context *
+                ValueLayout.ADDRESS,   // const char *
+                ValueLayout.JAVA_INT,  // int
+                ValueLayout.ADDRESS    // void(*)(void*)
+        );
+        return linker.downcallHandle(addr, descriptor);
+    }
+
+    /**
+     * <a href="https://www.sqlite.org/c3ref/result_blob.html">result NULL</a>
+     * <pre>
+     *     void sqlite3_result_null(sqlite3_context*);
+     * </pre>
+     */
+    private static MethodHandle _resultNull() {
+        var addr = resolveSymbol("sqlite3_result_null");
+        var descriptor = FunctionDescriptor.ofVoid(
+                ValueLayout.ADDRESS    // sqlite3_context *
+        );
+        return linker.downcallHandle(addr, descriptor);
+    }
 
     /**
      * <a href="https://www.sqlite.org/c3ref/bind_blob.html">bind blob</a>
@@ -94,7 +197,7 @@ public class ForeignSqlite3 {
                 ValueLayout.JAVA_INT,   // int
                 ValueLayout.ADDRESS,    // const char*
                 ValueLayout.JAVA_INT,   // int
-                ValueLayout.ADDRESS     // void(*)(void*)
+                ValueLayout.ADDRESS     // void(*)(void*) - SQLITE_TRANSIENT
         );
         return linker.downcallHandle(addr, descriptor);
     }
@@ -195,12 +298,25 @@ public class ForeignSqlite3 {
                 ValueLayout.ADDRESS,   // const char *zFunctionName
                 ValueLayout.JAVA_INT,  // int
                 ValueLayout.JAVA_INT,  // int,
+                ValueLayout.ADDRESS,   // void *pApp (user-data)
                 ValueLayout.ADDRESS,   // void (*xFunc)(sqlite3_context*,int,sqlite3_value**)
                 ValueLayout.ADDRESS,   // void (*xStep)(sqlite3_context*,int,sqlite3_value**)
                 ValueLayout.ADDRESS,   // void (*xFinal)(sqlite3_context*),
                 ValueLayout.ADDRESS    // void(*xDestroy)(void*)
         );
         return linker.downcallHandle(addr, descriptor);
+    }
+
+    static class CreateFunctionV2NativeCallbacks {
+
+        /**
+         * {@link FunctionDescriptor} declaration for `void (*xFunc)(sqlite3_context*,int,sqlite3_value**)`
+         */
+        static final FunctionDescriptor xFuncDescriptor = FunctionDescriptor.ofVoid(
+                ValueLayout.ADDRESS,
+                ValueLayout.JAVA_INT,
+                ValueLayout.ADDRESS
+        );
     }
 
     /**
@@ -713,6 +829,23 @@ public class ForeignSqlite3 {
         return linker.downcallHandle(addr, descriptor);
     }
 
+    /**
+     * <a href="https://www.sqlite.org/draft/c3ref/limit.html">limit</a>
+     *
+     * <pre>
+     *     int sqlite3_limit(sqlite3*, int id, int newVal);
+     * </pre>
+     **/
+    private static MethodHandle _limit() {
+        var addr = resolveSymbol("sqlite3_limit");
+        var descriptor = FunctionDescriptor.of(
+                ValueLayout.JAVA_INT,               // result int
+                ValueLayout.ADDRESS,    // sqlite3 *
+                ValueLayout.JAVA_INT,               // int id
+                ValueLayout.JAVA_INT                // int newVal
+        );
+        return linker.downcallHandle(addr, descriptor);
+    }
 
     private static MemorySegment resolveSymbol(String name) {
         return symbols.find(name)
